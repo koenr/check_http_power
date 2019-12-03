@@ -84,13 +84,3 @@ EOHELP
 ;
 }
 
-
-sub VERSION_MESSAGE 
-{
-	print <<EOVM
-$plugin_name v. $VERSION
-Copyright 2007, CAPSiDE SL - http://www.capside.com - Licensed under GPLv2
-Copyright 2019, Sint-Ritacollege - koen.roggemans@ritacollege.be
-EOVM
-;
-}
