@@ -1,5 +1,5 @@
 # check_http_power
-Nagios plugin to check power supply in Belgium via [https://offon.be/nl](https://economie.fgov.be/nl/themas/energie/bevoorradingszekerheid/elektriciteit/kans-op/de-actuele-situatie-op-het)https://economie.fgov.be/nl/themas/energie/bevoorradingszekerheid/elektriciteit/kans-op/de-actuele-situatie-op-het
+Nagios plugin to check power supply in Belgium via (https://economie.fgov.be/nl/themas/energie/bevoorradingszekerheid/elektriciteit/kans-op/de-actuele-situatie-op-het)https://economie.fgov.be/nl/themas/energie/bevoorradingszekerheid/elektriciteit/kans-op/de-actuele-situatie-op-het
 
 Data comes from https://extcom.azurewebsites.net/api/networkstate
 This is an XML-file containing the status of the next seven days. The file is parsed and the most severe state is reported in Nagios.
