@@ -2,7 +2,100 @@
 
 #------------------------------------------------------------------------------
 # check_http_power
-# 	retrieve power status from https://offon.be and return CRITICAL if
+# 	retrieve power status from #!/usr/bin/perl
+
+#------------------------------------------------------------------------------
+# check_http_power
+# 	retrieve power status from https://economie.fgov.be/nl/themas/energie/bevoorradingszekerheid/elektriciteit/kans-op/de-actuele-situatie-op-het and return CRITICAL if
+#       there are days ahead with power shortage. 
+#       Copyright 2019, Sint-Ritacollege, koen.roggemans@ritacollege.be
+# Licensed under GPLv2
+#     This program is free software; you can redistribute it and/or modify
+#     it under the terms of the GNU General Public License as published by
+#     the Free Software Foundation; either version 2 of the License, or
+#     (at your option) any later version.
+# 
+#     This program is distributed in the hope that it will be useful,
+#     but WITHOUT ANY WARRANTY; without even the implied warranty of
+#     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#     GNU General Public License for more details.
+# 
+#     You should have received a copy of the GNU General Public License
+#     along with Opsview; if not, write to the Free Software
+#     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#
+# -----------------------------------------------------------------------------
+use 5.010;
+use strict;
+use warnings;
+use Getopt::Std;
+use LWP::UserAgent;
+use XML::LibXML;
+
+my $plugin_name = 'check_http_power';
+my $VERSION		= '1.01';
+
+# getopt module config
+$Getopt::Std::STANDARD_HELP_VERSION = 1;
+
+# nagios exit codes
+use constant EXIT_OK		=> 0;
+use constant EXIT_WARNING	=> 1;
+use constant EXIT_CRITICAL	=> 2;
+use constant EXIT_UNKNOWN	=> 3;
+
+my $status = EXIT_OK;
+my @weekstates = "";
+
+# set trx timeout
+my $ua = LWP::UserAgent->new;
+$ua->timeout(5);
+
+# retrieve url
+my $response = $ua->get('https://extcom.azurewebsites.net/api/networkstate');
+my $xml_string = $response->content();
+
+# process XML
+my $dom = XML::LibXML->load_xml(string => $xml_string);
+
+foreach my $state ($dom->findnodes('/NetworkState/States/DayState/State')) {
+    @weekstates = $state->to_literal();
+    }
+foreach my $rec (@weekstates){
+    if ($rec eq "Black") {
+	print "Risico op afschakeling\n";
+	$status = EXIT_CRITICAL;
+	last;
+} elsif ($rec eq "Red") {
+	print "Risico op stroomtekort\n";
+    $status = EXIT_WARNING;
+    last;
+} elsif ($rec eq "Orange") {
+	print "Risico op stroomtekort\n";
+    $status = EXIT_WARNING;
+    last;    
+} elsif ($rec eq "Green") {
+	print "Normale situatie\n";
+    $status = EXIT_OK;
+} else {
+	print "Stroomstatus onbekend\n";
+	$status = EXIT_UNKNOWN;
+	}	
+}
+
+exit $status;
+
+
+sub HELP_MESSAGE 
+{
+	print <<EOHELP
+	Retrieve status from Belgian power grid from https://economie.fgov.be/nl/themas/energie/bevoorradingszekerheid/elektriciteit/kans-op/de-actuele-situatie-op-het. Shows ok when power is ok, warning when there are risks of a power cut, critical when a power cut is announced. Looks at a seven day window.
+	--help      shows this message
+	--version   shows version information
+EOHELP
+;
+}
+ and return CRITICAL if
 #       there are days ahead with power shortage. 
 #       Copyright 2019, Sint-Ritacollege, koen.roggemans@ritacollege.be
 #       Based on check_http_content Copyright 2007, CAPSiDE SL	
@@ -23,13 +116,15 @@
 #     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #
 # -----------------------------------------------------------------------------
-
+use 5.010;
 use strict;
+use warnings;
 use Getopt::Std;
 use LWP::UserAgent;
+use XML::LibXML;
 
 my $plugin_name = 'check_http_power';
-my $VERSION		= '0.01';
+my $VERSION		= '1.01';
 
 # getopt module config
 $Getopt::Std::STANDARD_HELP_VERSION = 1;
@@ -41,46 +136,53 @@ use constant EXIT_CRITICAL	=> 2;
 use constant EXIT_UNKNOWN	=> 3;
 
 my $status = EXIT_OK;
+my @weekstates = "";
 
-# set trx timeout 
+# set trx timeout
 my $ua = LWP::UserAgent->new;
 $ua->timeout(5);
 
 # retrieve url
-my $response = $ua->get("https://offon.be/esi/stroomindex/nl/121");
+my $response = $ua->get('https://extcom.azurewebsites.net/api/networkstate');
+my $xml_string = $response->content();
 
-if (not $response->is_success) {
-	print "ERROR: CANNOT RETRIEVE URL: ", $response->status_line, "\n";
-	$status = EXIT_UNKNOWN;
+# process XML
+my $dom = XML::LibXML->load_xml(string => $xml_string);
+
+foreach my $state ($dom->findnodes('/NetworkState/States/DayState/State')) {
+    @weekstates = $state->to_literal();
+    }
+foreach my $rec (@weekstates){
+    if ($rec eq "Black") {
+	print "Risico op afschakeling\n";
+	$status = EXIT_CRITICAL;
+	last;
+} elsif ($rec eq "Red") {
+	print "Risico op stroomtekort\n";
+    $status = EXIT_WARNING;
+    last;
+} elsif ($rec eq "Orange") {
+	print "Risico op stroomtekort\n";
+    $status = EXIT_WARNING;
+    last;    
+} elsif ($rec eq "Green") {
+	print "Normale situatie\n";
+    $status = EXIT_OK;
 } else {
-#	my $content = $response->content;
-	my $content = $response.substr(0, 3290);
-	if ($content =~ m/Afschakeling aangekondigd/gism) {
-		print "Afschakeling aangekondigd";
-		$status = EXIT_CRITICAL;
-	} elsif ($content =~ m/Risico op afschakeling/gism) {
-		print "Risico op afschakeling";
-		$status = EXIT_WARNING;
-	} elsif ($content =~ m/Risico op stroomtekort/gism) {
-		print "Risico op stroomtekort";
-		$status = EXIT_WARNING;
-        } else {
-                print "Stroomvoorziening ok";
-		$status = EXIT_OK;
-	}
+	print "Stroomstatus onbekend\n";
+	$status = EXIT_UNKNOWN;
+	}	
 }
 
 exit $status;
 
 
-
 sub HELP_MESSAGE 
 {
 	print <<EOHELP
-	Retrieve status from Belgian power grid from https://offon.be/esi/stroomindex/nl/121. Shows ok when power is ok, warning when there are risks of a power cut, critical when a power cut is announced. Looks at today and tomorrow.
+	Retrieve status from Belgian power grid from https://economie.fgov.be/nl/themas/energie/bevoorradingszekerheid/elektriciteit/kans-op/de-actuele-situatie-op-het. Shows ok when power is ok, warning when there are risks of a power cut, critical when a power cut is announced. Looks at a seven day window.
 	--help      shows this message
 	--version   shows version information
 EOHELP
 ;
 }
-
